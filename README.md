@@ -7,7 +7,7 @@ Paciência de palavras em português do Brasil. Sem anúncios, sem pontuação, 
 - **Tabuleiro**: 6 colunas de cartas; só a carta de baixo de cada coluna fica virada para cima.
 - **Categorias** (cartas verdes, ex.: "Frutas") e **palavras** (ex.: "Manga"). Cada jogo tem 7 categorias com 7 palavras cada.
 - **Fundações** (faixa no topo): são só 4. Leve uma carta de categoria para uma fundação livre e depois coloque nela as palavras dessa categoria. Quando chega a 7/7, a categoria é completada e a fundação é liberada para outra.
-- **Colunas**: uma palavra pode ser colocada em uma coluna vazia ou sobre outra palavra da mesma categoria. Carta de categoria só vai para coluna vazia ou fundação.
+- **Colunas**: uma palavra pode ser colocada em uma coluna vazia ou sobre outra palavra da mesma categoria. Carta de categoria vai para uma fundação, uma coluna vazia ou sobre uma palavra da própria categoria (isso destapa a carta de baixo); uma coluna com categoria no topo não recebe mais cartas, a categoria só sai dela para uma fundação.
 - **Monte** (canto superior direito): toque para comprar uma carta; ela aparece no descarte ao lado e pode ser jogada de lá. Quando o monte acaba, toque em ↻ para recomeçar. Não há limite de voltas.
 - **Modo médico**: a chave abaixo do título liga um banco de temas médicos para o internato (11 áreas, 90 categorias, mais de 1000 termos). Cada partida é de uma área (Cardiologia, Nefrologia, Pediatria...), passando por todas antes de repetir. O modo normal e o médico têm partidas e tempos separados: trocar de modo guarda uma e retoma a outra.
 - Ganha quem completar as 7 categorias.
