@@ -368,7 +368,15 @@
     return game.slots.indexOf(Core.catOf(card));
   }
 
-  var LOCKED_MSG = 'Uma carta de categoria só pode ir para a fundação, não recebe cartas na coluna.';
+  var LOCKED_MSG = 'Há uma carta de categoria no topo desta coluna: ela só sai para uma fundação.';
+  var CAT_MSG = 'Uma carta de categoria vai para uma fundação, uma coluna vazia ou sobre uma palavra dela.';
+
+  // Por que a carta não pode ir para esta coluna.
+  function explainColumn(src, c) {
+    if (Core.locked(game, c)) return LOCKED_MSG;
+    if (Core.isCat(Core.cardAt(game, src)) && game.cols[c].length) return CAT_MSG;
+    return '';
+  }
 
   function explainFoundation(src) {
     return Core.isCat(Core.cardAt(game, src))
@@ -770,7 +778,7 @@
         doMove(d.src, z);
       } else {
         if (z && z.t === 'f') setStatus(explainFoundation(d.src));
-        else if (z && z.t === 'c' && Core.locked(game, z.c)) setStatus(LOCKED_MSG);
+        else if (z && z.t === 'c') setStatus(explainColumn(d.src, z.c));
         render();
       }
     } else {
@@ -800,11 +808,14 @@
         doMove(sel, zone);
         return;
       }
-      if (zone && zone.t === 'c' && !Core.isCat(Core.cardAt(game, sel)) && Core.locked(game, zone.c)) {
-        setStatus(LOCKED_MSG);
-        fx.shake = true;
-        render();
-        return;
+      if (zone && zone.t === 'c' && !movable) {
+        var why = explainColumn(sel, zone.c);
+        if (why) {
+          setStatus(why);
+          fx.shake = true;
+          render();
+          return;
+        }
       }
       if (zone && zone.t === 'f' && !movable) {
         setStatus(explainFoundation(sel));

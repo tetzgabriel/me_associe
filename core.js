@@ -57,11 +57,12 @@
     return true;
   }
 
-  // Coluna que tem uma carta de categoria na base da parte virada para cima: não recebe mais cartas.
-  // A categoria só sai de lá indo para uma fundação.
+  // Coluna com uma carta de categoria na parte virada para cima: não recebe mais cartas.
+  // A categoria só sai de lá indo para uma fundação (ou para outra coluna, ver canMove).
   function locked(s, c) {
     var col = s.cols[c];
-    return col.length > 0 && isCat(col[Math.min(s.down[c], col.length - 1)]);
+    for (var k = Math.min(s.down[c], col.length); k < col.length; k++) if (isCat(col[k])) return true;
+    return false;
   }
 
   function canMove(s, src, dst) {
@@ -77,7 +78,9 @@
     if (src.t === 'c' && src.c === dst.c) return false;
     var dcol = s.cols[dst.c];
     if (dcol.length === 0) return true;
-    if (isCat(card) || locked(s, dst.c)) return false;
+    if (locked(s, dst.c)) return false;
+    // palavra sobre palavra da mesma categoria; a carta da categoria também pode ir sobre uma palavra
+    // dela (para destapar a carta de baixo), e então só sai dali para uma fundação
     return catOf(dcol[dcol.length - 1]) === catOf(card);
   }
 
@@ -178,6 +181,15 @@
       if (isCat(last)) {
         if (free) out.push({ src: { t: 'c', c: a, i: len - 1 }, dst: { t: 'f' }, w: 0 });
         else if (len > 1 && empty >= 0) out.push({ src: { t: 'c', c: a, i: len - 1 }, dst: { t: 'c', c: empty }, w: 4 });
+        if (len > 1 && s.down[a] === len - 1) {
+          // sozinha na parte de cima da coluna: vai sobre uma palavra da própria categoria para destapar
+          // a carta de baixo
+          for (var d = 0; d < n; d++) {
+            if (d === a || !s.cols[d].length || locked(s, d)) continue;
+            var dt = s.cols[d][s.cols[d].length - 1];
+            if (!isCat(dt) && catOf(dt) === catOf(last)) out.push({ src: { t: 'c', c: a, i: len - 1 }, dst: { t: 'c', c: d }, w: 5 });
+          }
+        }
         continue;
       }
       var i = s.down[a];
