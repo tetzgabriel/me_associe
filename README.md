@@ -40,7 +40,7 @@ Repositório `tetzgabriel/me_associe`, GitHub Pages pela branch `main` / `(root)
 | Arquivo | O que faz |
 | --- | --- |
 | `index.html`, `style.css` | Página e estilo |
-| `manifest.webmanifest`, `sw.js` | Instalação como app e cache para abrir rápido e offline. Se mudar a lista de arquivos, atualize `ASSETS` e `CACHE` em `sw.js` |
+| `manifest.webmanifest`, `sw.js` | Instalação como app e cache para abrir rápido e offline. Se mudar a lista de arquivos, atualize `ASSETS` e `CACHE` em `sw.js`; a atualização só entra se todos os arquivos novos forem baixados |
 | `icons/`, `splash/` | Ícone do app (feito em SVG) e telas de abertura do iPhone |
 | `game.js` | Interface, toque/arrastar, salvamento (`localStorage`) |
 | `core.js` | Regras, gerador de partidas e solver (usado para garantir solução e para a Dica). Os parâmetros (categorias, palavras, fundações, colunas) ficam em `Core.P` |
