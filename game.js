@@ -5,8 +5,11 @@
   var Core = window.Core;
   var BANK = window.WORD_BANK;
   var P = Core.P;
-  var SAVE_KEY = 'associe:v2';
-  var RECENT_KEY = 'associe:recent:v1';
+  var MODE_KEY = 'associe:mode:v1';
+  var KEYS = {
+    normal: { save: 'associe:v2', recent: 'associe:recent:v1' },
+    med: { save: 'associe:med:v1', recent: 'associe:med-recent:v1' }
+  };
   var MAX_HISTORY = 1500;
   var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -23,6 +26,11 @@
   var undoBtn = document.getElementById('undo');
   var hintBtn = document.getElementById('hint');
   var newBtn = document.getElementById('new');
+  var modeBtn = document.getElementById('mode');
+  var areaEl = document.getElementById('area');
+  var themeMeta = document.querySelector('meta[name="theme-color"]');
+
+  var mode = 'normal';   // 'normal' | 'med' (cada modo tem a sua partida salva)
 
   // game: estado do Core + { v, cats, history, startedAt, finishedAt }
   var game = null;
@@ -87,10 +95,10 @@
   }
 
   function save() {
-    store(SAVE_KEY, {
+    store(KEYS[mode].save, {
       v: 2, cols: game.cols, down: game.down, slots: game.slots, fc: game.fc, top: game.top,
       pool: game.pool, ptr: game.ptr, cats: game.cats, history: game.history,
-      startedAt: game.startedAt, finishedAt: game.finishedAt
+      startedAt: game.startedAt, finishedAt: game.finishedAt, area: game.area || null, leftAt: game.leftAt || null
     });
   }
 
@@ -212,24 +220,47 @@
 
   /* ---------- novo jogo ---------- */
 
+  function sample(list, n) {
+    var from = list.slice();
+    var out = [];
+    while (out.length < n) out.push(from.splice(rnd(from.length), 1)[0]);
+    return out;
+  }
+
+  function withWords(cats) {
+    return cats.map(function (c) { return { nome: c.nome, palavras: sample(c.palavras, P.WORDS) }; });
+  }
+
+  // Modo normal: categorias de qualquer assunto; roda o banco inteiro antes de repetir uma.
   function pickCategories() {
-    var recent = load(RECENT_KEY) || [];
+    var recent = load(KEYS.normal.recent) || [];
     var pool = BANK.filter(function (c) { return recent.indexOf(c.nome) < 0; });
     if (pool.length < P.CATS) { recent = []; pool = BANK.slice(); }
-    var picked = [];
-    while (picked.length < P.CATS) picked.push(pool.splice(rnd(pool.length), 1)[0]);
-    store(RECENT_KEY, recent.concat(picked.map(function (c) { return c.nome; })));
-    return picked.map(function (c) {
-      var words = c.palavras.slice();
-      var chosen = [];
-      while (chosen.length < P.WORDS) chosen.push(words.splice(rnd(words.length), 1)[0]);
-      return { nome: c.nome, palavras: chosen };
-    });
+    var picked = sample(pool, P.CATS);
+    store(KEYS.normal.recent, recent.concat(picked.map(function (c) { return c.nome; })));
+    return { cats: withWords(picked), area: null };
+  }
+
+  // Modo médico: cada partida é de uma área (Cardiologia, Nefrologia...); passa por todas as áreas
+  // antes de repetir uma.
+  function pickMedical() {
+    var areas = (window.MED_BANK || []).filter(function (a) { return a.cats.length >= P.CATS; });
+    if (!areas.length) return pickCategories();
+    var recent = load(KEYS.med.recent) || [];
+    var pool = areas.filter(function (a) { return recent.indexOf(a.area) < 0; });
+    if (!pool.length) { // deu a volta: recomeça, sem repetir a última área logo em seguida
+      recent = recent.slice(-1);
+      pool = areas.filter(function (a) { return recent.indexOf(a.area) < 0; });
+    }
+    var area = pool[rnd(pool.length)];
+    store(KEYS.med.recent, recent.concat(area.area));
+    return { cats: withWords(sample(area.cats, P.CATS)), area: area.area };
   }
 
   function newGame() {
     var s = Core.newSolvableDeal(rnd, 300) || Core.deal(rnd);
-    game = { v: 2, cats: pickCategories(), history: [], startedAt: Date.now(), finishedAt: null };
+    var pick = mode === 'med' ? pickMedical() : pickCategories();
+    game = { v: 2, cats: pick.cats, area: pick.area, history: [], startedAt: Date.now(), finishedAt: null };
     takeState(s);
     sel = null;
     hint = null;
@@ -383,11 +414,48 @@
     return Math.min(11, Math.max(5, longest));
   }
 
+  // Tamanho da letra pelo maior trecho sem quebra: termos médicos longos ("Amiodarona") cabem sem
+  // partir no meio da palavra. Mede com canvas, uma vez por texto.
+  var measureCanvas = document.createElement('canvas');
+  var measureCtx = measureCanvas.getContext && measureCanvas.getContext('2d');
+  var emCache = {};
+  var G = { colW: 56, cardMax: 12, tabMax: 10, faceMax: 11 };
+
+  function widestEm(text, sans) {
+    var key = (sans ? 's:' : 'f:') + text;
+    if (emCache[key] !== undefined) return emCache[key];
+    var em = 0;
+    if (measureCtx) {
+      measureCtx.font = sans ? '800 100px system-ui, -apple-system, sans-serif' : '700 100px Georgia, "Times New Roman", serif';
+      text.split(/\s+/).forEach(function (word) {
+        (word.match(/[^-]+-?/g) || [word]).forEach(function (piece) {
+          em = Math.max(em, measureCtx.measureText(piece).width / 100);
+        });
+      });
+    }
+    emCache[key] = em;
+    return em;
+  }
+
+  function fit(node, text, maxPx, availPx, sans) {
+    var em = widestEm(text, sans);
+    if (!em) return;
+    node.style.fontSize = Math.max(5.5, Math.min(maxPx, availPx / em)).toFixed(2) + 'px';
+  }
+
+  function measureGeom() {
+    var n = game.cols.length;
+    var w = boardEl.clientWidth || tableEl.clientWidth || 360;
+    var cssW = (Math.min(window.innerWidth - 12, 540) - 20) / 6; // mesma conta do --cardw do CSS
+    G = { colW: (w - 4 * (n - 1)) / n, cardMax: Math.min(cssW * .22, 17), tabMax: Math.min(cssW * .17, 12.5), faceMax: Math.min(cssW * .2, 16) };
+  }
+
   function cardEl(id, extra, dataset) {
     var text = cardText(id);
     var b = el('button', 'card' + (Core.isCat(id) ? ' cat' : '') + (extra || ''), text);
     b.type = 'button';
     b.dataset.len = lenOf(text);
+    fit(b, text, G.cardMax, G.colW - 7, false);
     b.setAttribute('aria-label', (Core.isCat(id) ? 'Categoria ' : 'Palavra ') + text);
     Object.keys(dataset || {}).forEach(function (k) { b.dataset[k] = dataset[k]; });
     return b;
@@ -413,12 +481,14 @@
         var count = complete ? P.WORDS : game.fc[cat];
         var tab = el('span', 'tab', game.cats[cat].nome);
         tab.dataset.len = lenOf(game.cats[cat].nome);
+        fit(tab, game.cats[cat].nome, G.tabMax, G.colW - 5, true);
         slot.appendChild(tab);
         var face = el('span', 'face');
         face.appendChild(el('span', 'count', count + ' / ' + P.WORDS));
         var topId = game.top[cat];
         var topText = topId >= 0 && !Core.isCat(topId) ? cardText(topId) : '';
         face.dataset.len = lenOf(topText || 'x');
+        if (topText) fit(face, topText, G.faceMax, G.colW - 9, false);
         face.appendChild(document.createTextNode(topText));
         var bar = el('span', 'bar-fill');
         var fill = el('i');
@@ -505,13 +575,32 @@
     });
   }
 
+  // O navegador pode medir o texto diferente do canvas (arredondamento em fontes pequenas): confere
+  // no DOM e reduz a letra de quem estourou, para nunca partir uma palavra no meio.
+  function shrinkToFit() {
+    var nodes = tableEl.querySelectorAll('.card:not(.down), .slot .tab, .slot .face');
+    for (var pass = 0; pass < 4; pass++) {
+      var over = [];
+      for (var k = 0; k < nodes.length; k++) {
+        if (nodes[k].scrollWidth > nodes[k].clientWidth + 0.5) over.push(nodes[k]);
+      }
+      if (!over.length) return;
+      var sizes = over.map(function (n) {
+        return parseFloat(window.getComputedStyle(n).fontSize) * Math.max(0.75, (n.clientWidth / n.scrollWidth) * 0.97);
+      });
+      over.forEach(function (n, i) { n.style.fontSize = sizes[i].toFixed(2) + 'px'; });
+    }
+  }
+
   function render() {
     var f = takeFx();
     tableEl.style.setProperty('--n', game.cols.length);
     topEl.style.setProperty('--n', game.cols.length);
     boardEl.style.setProperty('--n', game.cols.length);
+    measureGeom();
     renderTop(f);
     renderBoard(f);
+    shrinkToFit();
 
     var names = [];
     game.fc.forEach(function (n, c) { if (n === P.WORDS) names.push(game.cats[c].nome); });
@@ -521,6 +610,7 @@
     });
     shownDone = names.length;
 
+    areaEl.textContent = game.area || '';
     undoBtn.disabled = game.history.length === 0;
     var won = Core.isWon(game);
     hintBtn.disabled = won;
@@ -763,15 +853,49 @@
 
   /* ---------- início ---------- */
 
-  var saved = load(SAVE_KEY);
-  if (validSave(saved)) {
+  // Retoma a partida salva do modo atual; false se não houver uma válida.
+  function resume() {
+    var saved = load(KEYS[mode].save);
+    if (!validSave(saved)) return false;
     game = saved;
     if (!game.startedAt) game.startedAt = Date.now();
+    if (game.leftAt) { // o tempo longe desta partida (jogando no outro modo) não conta
+      if (!game.finishedAt) game.startedAt += Math.max(0, Date.now() - game.leftAt);
+      game.leftAt = null;
+    }
     if (Core.isWon(game) && !game.finishedAt) game.finishedAt = Date.now();
     if (!Core.isWon(game)) game.finishedAt = null;
+    sel = null; hint = null; celeb = null; shownDone = 0;
+    hideWin();
+    setStatus('');
+    fx = emptyFx();
+    fx.deal = true;
     render();
-  } else {
-    newGame();
+    return true;
   }
+
+  function applyMode() {
+    var med = mode === 'med';
+    document.documentElement.classList.toggle('med', med);
+    modeBtn.setAttribute('aria-checked', med ? 'true' : 'false');
+    if (themeMeta) themeMeta.setAttribute('content', med ? '#0b4a57' : '#14573a');
+  }
+
+  function setMode(next) {
+    if (next === mode || !game) return;
+    game.leftAt = Date.now();
+    save();
+    mode = next;
+    store(MODE_KEY, mode);
+    applyMode();
+    if (!resume()) newGame();
+  }
+
+  modeBtn.addEventListener('click', function () { setMode(mode === 'med' ? 'normal' : 'med'); });
+
+  var savedMode = load(MODE_KEY);
+  if (savedMode === 'med' && window.MED_BANK) mode = 'med';
+  applyMode();
+  if (!resume()) newGame();
   setInterval(tick, 1000);
 })();

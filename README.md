@@ -9,6 +9,7 @@ Paciência de palavras em português do Brasil. Sem anúncios, sem pontuação, 
 - **Fundações** (faixa no topo): são só 4. Leve uma carta de categoria para uma fundação livre e depois coloque nela as palavras dessa categoria. Quando chega a 7/7, a categoria é completada e a fundação é liberada para outra.
 - **Colunas**: uma palavra pode ser colocada em uma coluna vazia ou sobre outra palavra da mesma categoria. Carta de categoria só vai para coluna vazia ou fundação.
 - **Monte** (canto superior direito): toque para comprar uma carta; ela aparece no descarte ao lado e pode ser jogada de lá. Quando o monte acaba, toque em ↻ para recomeçar. Não há limite de voltas.
+- **Modo médico**: a chave abaixo do título liga um banco de temas médicos para o internato (11 áreas, 90 categorias, mais de 1000 termos). Cada partida é de uma área (Cardiologia, Nefrologia, Pediatria...), passando por todas antes de repetir. O modo normal e o médico têm partidas e tempos separados: trocar de modo guarda uma e retoma a outra.
 - Ganha quem completar as 7 categorias.
 - Toque numa carta e depois no destino, ou arraste. Arrastar uma carta leva junto tudo o que está empilhado sobre ela, inclusive uma categoria com suas palavras para a fundação. **Desfazer** e **Dica** são ilimitados.
 - **Novo jogo** sorteia outras categorias e palavras. Todo jogo sorteado tem solução.
@@ -45,3 +46,4 @@ Repositório `tetzgabriel/me_associe`, GitHub Pages pela branch `main` / `(root)
 | `game.js` | Interface, toque/arrastar, salvamento (`localStorage`) |
 | `core.js` | Regras, gerador de partidas e solver (usado para garantir solução e para a Dica). Os parâmetros (categorias, palavras, fundações, colunas) ficam em `Core.P` |
 | `words.js` | Banco de categorias e palavras. Para adicionar: sem palavra repetida entre categorias, palavras curtas |
+| `words-med.js` | Banco do modo médico, organizado por área. Regras no comentário do arquivo (sem palavra repetida na mesma área, trechos de até 11 letras) |
