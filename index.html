@@ -38,6 +38,18 @@
     </div>
   </header>
 
+  <div class="modebar">
+    <button id="mode" class="switch" type="button" role="switch" aria-checked="false" aria-label="Modo médico">
+      <span class="sw-track" aria-hidden="true">
+        <svg class="sw-ico sw-cards" viewBox="0 0 24 24"><rect x="3.5" y="5" width="10" height="14" rx="2" transform="rotate(-12 8.5 12)"/><rect x="10.5" y="5" width="10" height="14" rx="2" transform="rotate(10 15.5 12)"/></svg>
+        <svg class="sw-ico sw-steth" viewBox="0 0 24 24"><path d="M5.5 3v5a4.5 4.5 0 0 0 9 0V3"/><path d="M10 12.5V15a4.5 4.5 0 0 0 9 0v-1.5"/><circle cx="19" cy="11.5" r="2.2"/></svg>
+        <span class="sw-knob"></span>
+      </span>
+      <span class="sw-text">Modo médico</span>
+    </button>
+    <span id="area" class="area"></span>
+  </div>
+
   <nav class="bar" aria-label="Ações">
     <button id="undo" type="button">Desfazer</button>
     <button id="hint" type="button">Dica</button>
@@ -70,6 +82,7 @@
   </div>
 
   <script src="words.js"></script>
+  <script src="words-med.js"></script>
   <script src="core.js"></script>
   <script src="game.js"></script>
   <script>

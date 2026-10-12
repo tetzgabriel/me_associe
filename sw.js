@@ -2,8 +2,8 @@
    O jogo não depende de nenhum servidor (categorias, palavras e sorteio estão nos arquivos).
    Atualização: a cada abertura o app pede uma atualização; ela só substitui o cache se TODOS os
    arquivos novos chegarem, então uma conexão ruim nunca deixa o jogo pela metade. */
-var CACHE = 'meassocie-v2';
-var ASSETS = ['./', 'index.html', 'style.css', 'words.js', 'core.js', 'game.js', 'manifest.webmanifest',
+var CACHE = 'meassocie-v3';
+var ASSETS = ['./', 'index.html', 'style.css', 'words.js', 'words-med.js', 'core.js', 'game.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'icons/maskable-512.png', 'icons/favicon-32.png'];
 
