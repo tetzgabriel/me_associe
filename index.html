@@ -74,7 +74,14 @@
   <script src="game.js"></script>
   <script>
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+          // pede uma atualização silenciosa dos arquivos (só vale se todos chegarem)
+          var sw = reg.active || navigator.serviceWorker.controller;
+          if (sw && navigator.onLine !== false) sw.postMessage('refresh');
+          if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+        }).catch(function () {});
+      });
     }
   </script>
 </body>
