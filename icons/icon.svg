@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="36%" r="80%"><stop offset="0" stop-color="#34a36c"/><stop offset=".55" stop-color="#176040"/><stop offset="1" stop-color="#072a1b"/></radialGradient>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a7be0"/><stop offset="1" stop-color="#1c3d8c"/></linearGradient>
+  <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#efe0bc"/></linearGradient>
+  <linearGradient id="cat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fb67b"/><stop offset="1" stop-color="#12513a"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2b0"/><stop offset=".5" stop-color="#f0c35a"/><stop offset="1" stop-color="#c58d1c"/></linearGradient>
+  <pattern id="lat" width="46" height="46" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H46M0 0V46" stroke="#fff" stroke-opacity=".24" stroke-width="7"/></pattern>
+  <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="16" stdDeviation="15" flood-color="#000" flood-opacity=".5"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="229" fill="url(#bg)"/>
+<g transform="translate(512 512) scale(1) translate(-512 -512)">
+  <circle cx="512" cy="500" r="430" fill="url(#glow)"/>
+  <!-- verso azul -->
+  <g transform="rotate(-31 512 905)" filter="url(#sh)">
+    <rect x="347" y="250" width="330" height="470" rx="40" fill="url(#back)" stroke="#f6f1e3" stroke-width="12"/>
+    <rect x="371" y="274" width="282" height="422" rx="22" fill="url(#lat)" stroke="#fff" stroke-opacity=".6" stroke-width="5"/>
+  </g>
+  <!-- carta de palavra -->
+  <g transform="rotate(31 512 905)" filter="url(#sh)">
+    <rect x="347" y="250" width="330" height="470" rx="40" fill="url(#paper)" stroke="#c9bc98" stroke-width="8"/>
+    <rect x="369" y="272" width="286" height="426" rx="24" fill="none" stroke="#8b692d" stroke-opacity=".45" stroke-width="5"/>
+    <rect x="518" y="320" width="112" height="26" rx="13" fill="#2b2216" fill-opacity=".85"/>
+    <rect x="518" y="366" width="72" height="18" rx="9" fill="#2b2216" fill-opacity=".35"/>
+    <rect x="572" y="490" width="84" height="84" rx="8" transform="rotate(45 614 532)" fill="#8b692d" fill-opacity=".22"/>
+  </g>
+  <!-- carta de categoria -->
+  <g filter="url(#sh)">
+    <rect x="347" y="250" width="330" height="470" rx="40" fill="url(#cat)" stroke="#0a2c1c" stroke-width="8"/>
+    <rect x="369" y="272" width="286" height="426" rx="24" fill="none" stroke="url(#gold)" stroke-width="8"/>
+    <polygon points="512.0,327.0 543.7,411.3 633.7,415.4 563.4,471.7 587.2,558.6 512.0,509.0 436.8,558.6 460.6,471.7 390.3,415.4 480.3,411.3" fill="url(#gold)" stroke="#8a5e0c" stroke-width="6" stroke-linejoin="round"/>
+    <rect x="438" y="622" width="148" height="26" rx="13" fill="#fff4cc" fill-opacity=".9"/>
+  </g>
+  <path d="M822 178Q828 222 872 228Q828 234 822 278Q816 234 772 228Q816 222 822 178Z" fill="#fff6c8"/><path d="M214 270Q217.6 296.4 244 300Q217.6 303.6 214 330Q210.4 303.6 184 300Q210.4 296.4 214 270Z" fill="#fff6c8"/><path d="M868 340Q870.4 357.6 888 360Q870.4 362.4 868 380Q865.6 362.4 848 360Q865.6 357.6 868 340Z" fill="#fff6c8"/>
+</g>
+</svg>
