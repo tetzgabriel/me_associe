@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14573a">
-  <meta name="description" content="MeAsocie: paciência de associação em português. Agrupe as palavras nas categorias certas.">
-  <title>MeAsocie</title>
+  <meta name="description" content="MeAsocie: paciência de associação em português. Agrupe as palavras nas categorias certas." data-i18n-attr="content:meta.description">
+  <title data-i18n="meta.title">MeAsocie</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -28,42 +28,47 @@
   <link rel="apple-touch-startup-image" href="splash/1320x2868.jpg" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
   <style>html{background:#124a32}</style>
   <link rel="stylesheet" href="style.css">
+  <!-- things18n (a copy of ../../things18n/things18n.js, so this folder stays self-contained and works offline).
+       It loads here, synchronously, so <html lang> is right before the first paint. -->
+  <script src="things18n.js" data-langs="pt-BR,en" data-default="pt-BR"></script>
+  <script src="i18n.js"></script>
 </head>
 <body>
   <header class="hud">
     <h1 class="title">MeAsocie</h1>
-    <div class="timer" role="timer" aria-label="Tempo desde o início da rodada">
-      <span class="timer-label">Tempo</span>
+    <div class="timer" role="timer" aria-label="Tempo desde o início da rodada" data-i18n-attr="aria-label:timer.aria">
+      <span class="timer-label" data-i18n="timer.label">Tempo</span>
       <span id="time" class="timer-value">00:00</span>
     </div>
   </header>
 
   <div class="modebar">
-    <button id="mode" class="switch" type="button" role="switch" aria-checked="false" aria-label="Modo médico">
+    <button id="mode" class="switch" type="button" role="switch" aria-checked="false" aria-label="Modo médico" data-i18n-attr="aria-label:mode.label">
       <span class="sw-track" aria-hidden="true">
         <svg class="sw-ico sw-cards" viewBox="0 0 24 24"><rect x="3.5" y="5" width="10" height="14" rx="2" transform="rotate(-12 8.5 12)"/><rect x="10.5" y="5" width="10" height="14" rx="2" transform="rotate(10 15.5 12)"/></svg>
         <svg class="sw-ico sw-steth" viewBox="0 0 24 24"><path d="M5.5 3v5a4.5 4.5 0 0 0 9 0V3"/><path d="M10 12.5V15a4.5 4.5 0 0 0 9 0v-1.5"/><circle cx="19" cy="11.5" r="2.2"/></svg>
         <span class="sw-knob"></span>
       </span>
-      <span class="sw-text">Modo médico</span>
+      <span class="sw-text" data-i18n="mode.label">Modo médico</span>
     </button>
     <span id="area" class="area"></span>
+    <nav class="langswitch" data-i18n-switch="short" aria-label="Idioma" data-i18n-attr="aria-label:lang.label"></nav>
   </div>
 
-  <nav class="bar" aria-label="Ações">
-    <button id="undo" type="button">Desfazer</button>
-    <button id="hint" type="button">Dica</button>
-    <button id="new" type="button">Novo jogo</button>
+  <nav class="bar" aria-label="Ações" data-i18n-attr="aria-label:actions.label">
+    <button id="undo" type="button" data-i18n="actions.undo">Desfazer</button>
+    <button id="hint" type="button" data-i18n="actions.hint">Dica</button>
+    <button id="new" type="button" data-i18n="actions.new">Novo jogo</button>
   </nav>
 
   <p id="done" class="done" aria-live="polite"></p>
 
   <div id="table" class="table">
-    <section id="top" class="top" aria-label="Categorias e monte"></section>
-    <main id="board" class="board" aria-label="Tabuleiro"></main>
+    <section id="top" class="top" aria-label="Categorias e monte" data-i18n-attr="aria-label:board.top"></section>
+    <main id="board" class="board" aria-label="Tabuleiro" data-i18n-attr="aria-label:board.label"></main>
   </div>
   <p id="status" class="status" aria-live="polite"></p>
-  <noscript><p class="status">Este jogo precisa de JavaScript.</p></noscript>
+  <noscript><p class="status">Este jogo precisa de JavaScript. / This game needs JavaScript.</p></noscript>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <canvas id="fx" class="fx" aria-hidden="true"></canvas>
@@ -71,17 +76,18 @@
   <div id="win" class="win" hidden>
     <div class="win-panel" role="dialog" aria-modal="true" aria-labelledby="win-title">
       <div class="win-cards" aria-hidden="true"><span></span><span></span><span></span></div>
-      <h2 id="win-title">Parabéns!</h2>
-      <p>Todas as categorias completas.</p>
-      <p class="win-time">Tempo: <strong id="win-time">00:00</strong></p>
+      <h2 id="win-title" data-i18n="win.title">Parabéns!</h2>
+      <p data-i18n="win.body">Todas as categorias completas.</p>
+      <p class="win-time"><span data-i18n="win.time">Tempo:</span> <strong id="win-time">00:00</strong></p>
       <div class="win-actions">
-        <button id="win-new" type="button">Novo jogo</button>
-        <button id="win-close" type="button" class="ghost-btn">Fechar</button>
+        <button id="win-new" type="button" data-i18n="actions.new">Novo jogo</button>
+        <button id="win-close" type="button" class="ghost-btn" data-i18n="win.close">Fechar</button>
       </div>
     </div>
   </div>
 
   <script src="words.js"></script>
+  <script src="words.en.js"></script>
   <script src="words-med.js"></script>
   <script src="core.js"></script>
   <script src="game.js"></script>

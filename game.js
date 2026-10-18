@@ -3,13 +3,28 @@
   'use strict';
 
   var Core = window.Core;
-  var BANK = window.WORD_BANK;
+  var I18N = window.things18n;
+  var t = I18N.t;
   var P = Core.P;
   var MODE_KEY = 'associe:mode:v1';
-  var KEYS = {
-    normal: { save: 'associe:v2', recent: 'associe:recent:v1' },
-    med: { save: 'associe:med:v1', recent: 'associe:med-recent:v1' }
+
+  // Word banks per language. English has no medical bank (that mode is for the Brazilian residency exam),
+  // so the medical switch is hidden when playing in English.
+  var BANKS = {
+    'pt-BR': { normal: window.WORD_BANK, med: window.MED_BANK },
+    en: { normal: window.WORD_BANK_EN, med: null }
   };
+  function bankFor(lang) { return BANKS[lang] || BANKS['pt-BR']; }
+
+  // Saved games live under one key per language and mode. Portuguese keeps the original keys, so games
+  // started before translations existed (and in the standalone copy of this game) are still found.
+  function keysFor(lang, m) {
+    if (lang === 'pt-BR') return m === 'med'
+      ? { save: 'associe:med:v1', recent: 'associe:med-recent:v1' }
+      : { save: 'associe:v2', recent: 'associe:recent:v1' };
+    var p = 'associe:' + lang + (m === 'med' ? ':med' : '');
+    return { save: p + ':v1', recent: p + ':recent:v1' };
+  }
   var MAX_HISTORY = 1500;
   var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -30,7 +45,18 @@
   var areaEl = document.getElementById('area');
   var themeMeta = document.querySelector('meta[name="theme-color"]');
 
+  var gameLang = BANKS[I18N.lang] ? I18N.lang : 'pt-BR';  // language of the game on the table (follows the UI)
   var mode = 'normal';   // 'normal' | 'med' (cada modo tem a sua partida salva)
+  var prefMode = 'normal'; // what the player picked; kept while playing in a language without that mode
+  function K() { return keysFor(gameLang, mode); }
+
+  // Two labels live in CSS (content: ...); hand them to the stylesheet as variables, in the current language.
+  function applyCssText() {
+    var st = document.documentElement.style;
+    st.setProperty('--t-free', JSON.stringify(t('css.free')));
+    st.setProperty('--t-med', JSON.stringify(' ' + t('css.med')));
+  }
+  applyCssText();
 
   // game: estado do Core + { v, cats, history, startedAt, finishedAt }
   var game = null;
@@ -95,14 +121,19 @@
   }
 
   function save() {
-    store(KEYS[mode].save, {
+    store(K().save, {
       v: 2, cols: game.cols, down: game.down, slots: game.slots, fc: game.fc, top: game.top,
       pool: game.pool, ptr: game.ptr, cats: game.cats, history: game.history,
       startedAt: game.startedAt, finishedAt: game.finishedAt, area: game.area || null, leftAt: game.leftAt || null
     });
   }
 
-  function setStatus(text) { statusEl.textContent = text || ''; }
+  // The status line is remembered as a key + params, so it re-translates when the language changes.
+  var statusState = null;
+  function setStatus(key, params) {
+    statusState = key ? { key: key, params: params } : null;
+    statusEl.textContent = key ? t(key, params) : '';
+  }
 
   /* ---------- tempo ---------- */
 
@@ -233,27 +264,30 @@
 
   // Modo normal: categorias de qualquer assunto; roda o banco inteiro antes de repetir uma.
   function pickCategories() {
-    var recent = load(KEYS.normal.recent) || [];
+    var BANK = bankFor(gameLang).normal;
+    var rk = keysFor(gameLang, 'normal').recent;
+    var recent = load(rk) || [];
     var pool = BANK.filter(function (c) { return recent.indexOf(c.nome) < 0; });
     if (pool.length < P.CATS) { recent = []; pool = BANK.slice(); }
     var picked = sample(pool, P.CATS);
-    store(KEYS.normal.recent, recent.concat(picked.map(function (c) { return c.nome; })));
+    store(rk, recent.concat(picked.map(function (c) { return c.nome; })));
     return { cats: withWords(picked), area: null };
   }
 
   // Modo médico: cada partida é de uma área (Cardiologia, Nefrologia...); passa por todas as áreas
   // antes de repetir uma.
   function pickMedical() {
-    var areas = (window.MED_BANK || []).filter(function (a) { return a.cats.length >= P.CATS; });
+    var areas = (bankFor(gameLang).med || []).filter(function (a) { return a.cats.length >= P.CATS; });
     if (!areas.length) return pickCategories();
-    var recent = load(KEYS.med.recent) || [];
+    var rk = keysFor(gameLang, 'med').recent;
+    var recent = load(rk) || [];
     var pool = areas.filter(function (a) { return recent.indexOf(a.area) < 0; });
     if (!pool.length) { // deu a volta: recomeça, sem repetir a última área logo em seguida
       recent = recent.slice(-1);
       pool = areas.filter(function (a) { return recent.indexOf(a.area) < 0; });
     }
     var area = pool[rnd(pool.length)];
-    store(KEYS.med.recent, recent.concat(area.area));
+    store(rk, recent.concat(area.area));
     return { cats: withWords(sample(area.cats, P.CATS)), area: area.area };
   }
 
@@ -327,7 +361,7 @@
 
   function celebrateCategory(slotEl, cat) {
     burstAt(slotEl, 70, 10);
-    toast(game.cats[cat].nome + ' completa!');
+    toast(t('toast.complete', { name: game.cats[cat].nome }));
     var mine = celeb;
     setTimeout(function () {
       if (celeb === mine) { celeb = null; render(); }
@@ -368,8 +402,8 @@
     return game.slots.indexOf(Core.catOf(card));
   }
 
-  var LOCKED_MSG = 'Há uma carta de categoria no topo desta coluna: ela só sai para uma fundação.';
-  var CAT_MSG = 'Uma carta de categoria vai para uma fundação, uma coluna vazia ou sobre uma palavra dela.';
+  var LOCKED_MSG = 'msg.locked';
+  var CAT_MSG = 'msg.catDest';
 
   // Por que a carta não pode ir para esta coluna.
   function explainColumn(src, c) {
@@ -380,8 +414,8 @@
 
   function explainFoundation(src) {
     return Core.isCat(Core.cardAt(game, src))
-      ? 'Todas as fundações estão ocupadas. Complete uma categoria antes.'
-      : 'A categoria dessa palavra ainda não está em nenhuma fundação.';
+      ? 'msg.foundationsFull'
+      : 'msg.noFoundation';
   }
 
   function showHint() {
@@ -390,13 +424,13 @@
     var m = r.path && r.path[0];
     if (!m) {
       if (r.complete) {
-        setStatus('Daqui não dá mais para terminar. Use Desfazer.');
+        setStatus('msg.stuck');
         return;
       }
       m = Core.genMoves(game)[0];
     }
     if (!m) {
-      setStatus(game.pool.length ? 'Sem jogadas no tabuleiro. Compre cartas do monte.' : 'Sem jogadas possíveis. Use Desfazer.');
+      setStatus(game.pool.length ? 'msg.drawCards' : 'msg.noMoves');
       return;
     }
     if (m.src.t === 'p') game.ptr = m.src.idx + 1; // mostra a carta no descarte
@@ -464,7 +498,7 @@
     b.type = 'button';
     b.dataset.len = lenOf(text);
     fit(b, text, G.cardMax, G.colW - 7, false);
-    b.setAttribute('aria-label', (Core.isCat(id) ? 'Categoria ' : 'Palavra ') + text);
+    b.setAttribute('aria-label', t(Core.isCat(id) ? 'aria.category' : 'aria.word', { name: text }));
     Object.keys(dataset || {}).forEach(function (k) { b.dataset[k] = dataset[k]; });
     return b;
   }
@@ -504,11 +538,11 @@
         bar.appendChild(fill);
         face.appendChild(bar);
         slot.appendChild(face);
-        slot.setAttribute('aria-label', 'Categoria ' + game.cats[cat].nome + ', ' + count + ' de ' + P.WORDS);
+        slot.setAttribute('aria-label', t('aria.slot', { name: game.cats[cat].nome, count: count, total: P.WORDS }));
       } else {
         slot.appendChild(el('span', 'tab'));
         slot.appendChild(el('span', 'face'));
-        slot.setAttribute('aria-label', 'Fundação livre');
+        slot.setAttribute('aria-label', t('aria.slotFree'));
       }
       topEl.appendChild(slot);
     }
@@ -534,13 +568,13 @@
     stock.type = 'button';
     if (!game.pool.length) {
       stock.disabled = true;
-      stock.setAttribute('aria-label', 'Monte vazio');
+      stock.setAttribute('aria-label', t('aria.stockEmpty'));
     } else if (left > 0) {
       stock.textContent = left;
-      stock.setAttribute('aria-label', 'Comprar carta, ' + left + ' no monte');
+      stock.setAttribute('aria-label', t('aria.stockDraw', { count: left }));
     } else {
       stock.textContent = '↻';
-      stock.setAttribute('aria-label', 'Recomeçar o monte');
+      stock.setAttribute('aria-label', t('aria.stockReset'));
     }
     topEl.appendChild(stock);
   }
@@ -562,7 +596,7 @@
           b = el('button', 'card down' + anim);
           b.type = 'button';
           b.tabIndex = -1;
-          b.setAttribute('aria-label', 'Carta virada para baixo');
+          b.setAttribute('aria-label', t('aria.faceDown'));
           b.dataset.i = i;
         } else {
           var extra = anim;
@@ -622,7 +656,7 @@
     undoBtn.disabled = game.history.length === 0;
     var won = Core.isWon(game);
     hintBtn.disabled = won;
-    if (won) setStatus('Pronto! Todas as categorias foram completadas.');
+    if (won) setStatus('status.won');
     tick();
   }
 
@@ -850,7 +884,7 @@
 
   function askNewGame() {
     var inProgress = game.history.length > 0 && !Core.isWon(game);
-    if (inProgress && !window.confirm('Começar um novo jogo? O jogo atual será perdido.')) return;
+    if (inProgress && !window.confirm(t('confirm.newGame'))) return;
     newGame();
   }
 
@@ -866,7 +900,7 @@
 
   // Retoma a partida salva do modo atual; false se não houver uma válida.
   function resume() {
-    var saved = load(KEYS[mode].save);
+    var saved = load(K().save);
     if (!validSave(saved)) return false;
     game = saved;
     if (!game.startedAt) game.startedAt = Date.now();
@@ -888,15 +922,16 @@
   function applyMode() {
     var med = mode === 'med';
     document.documentElement.classList.toggle('med', med);
+    document.documentElement.classList.toggle('no-med', !bankFor(gameLang).med);
     modeBtn.setAttribute('aria-checked', med ? 'true' : 'false');
     if (themeMeta) themeMeta.setAttribute('content', med ? '#0b4a57' : '#14573a');
   }
 
   function setMode(next) {
-    if (next === mode || !game) return;
+    if (next === mode || !game || !bankFor(gameLang).med) return;
     game.leftAt = Date.now();
     save();
-    mode = next;
+    mode = prefMode = next;
     store(MODE_KEY, mode);
     applyMode();
     if (!resume()) newGame();
@@ -904,8 +939,28 @@
 
   modeBtn.addEventListener('click', function () { setMode(mode === 'med' ? 'normal' : 'med'); });
 
+  // Switching language switches the game on the table too: each language keeps its own saved game,
+  // exactly like the normal/medical modes do. Nothing is lost; switch back and it resumes.
+  function onLanguage(next) {
+    var target = BANKS[next] ? next : 'pt-BR';
+    applyCssText();
+    if (!game) return;
+    if (target === gameLang) { setStatus(statusState && statusState.key, statusState && statusState.params); render(); return; }
+    game.leftAt = Date.now();
+    save();
+    gameLang = target;
+    mode = bankFor(gameLang).med ? prefMode : 'normal';
+    applyMode();
+    if (!resume()) newGame();
+    // the status line and toast belong to the previous language
+    setStatus('');
+    toastEl.classList.remove('show');
+  }
+  I18N.onChange(onLanguage);
+
   var savedMode = load(MODE_KEY);
-  if (savedMode === 'med' && window.MED_BANK) mode = 'med';
+  if (savedMode === 'med') prefMode = 'med';
+  mode = bankFor(gameLang).med ? prefMode : 'normal';
   applyMode();
   if (!resume()) newGame();
   setInterval(tick, 1000);

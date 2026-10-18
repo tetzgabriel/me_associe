@@ -2,6 +2,10 @@
 
 Paciência de palavras em português do Brasil. Sem anúncios, sem pontuação, sem limite de jogadas.
 
+## Idiomas
+
+O jogo fala português (BR) e inglês. O idioma vem do navegador na primeira vez, e o seletor **PT · EN** (ao lado do modo médico) troca na hora. Cada idioma guarda a sua própria partida; o modo médico existe só em português. A tradução usa o [things18n](https://meoriente.com.br/indiethings/things18n/): `i18n.js` tem os textos da interface e `words.en.js` o banco de palavras em inglês.
+
 ## Como jogar
 
 - **Tabuleiro**: 6 colunas de cartas; só a carta de baixo de cada coluna fica virada para cima.
