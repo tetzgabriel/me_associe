@@ -2,12 +2,9 @@
    O jogo não depende de nenhum servidor (categorias, palavras e sorteio estão nos arquivos).
    Atualização: a cada abertura o app pede uma atualização; ela só substitui o cache se TODOS os
    arquivos novos chegarem, então uma conexão ruim nunca deixa o jogo pela metade. */
-// Same cache name as the standalone copy of this game (meoriente.com.br/me_associe): both live on one origin
-// and share CacheStorage, and each worker deletes every cache that isn't its own name. Entries are keyed by
-// full URL, so the two copies never collide; a different name here would make each copy wipe the other's
-// offline files. A changed sw.js (like the new ASSETS list) is what triggers the refresh, not the name.
+// things18n comes from the indiethings site, which is the same origin, so it is cached with the rest.
 var CACHE = 'meassocie-v4';
-var ASSETS = ['./', 'index.html', 'style.css', 'words.js', 'words.en.js', 'words-med.js', 'core.js', 'game.js', 'things18n.js', 'i18n.js', 'manifest.webmanifest',
+var ASSETS = ['./', 'index.html', 'style.css', 'words.js', 'words.en.js', 'words-med.js', 'core.js', 'game.js', '/indiethings/things18n/things18n.js', 'i18n.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'icons/maskable-512.png', 'icons/favicon-32.png'];
 

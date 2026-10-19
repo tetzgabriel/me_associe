@@ -4,7 +4,9 @@ Paciência de palavras em português do Brasil. Sem anúncios, sem pontuação, 
 
 ## Idiomas
 
-O jogo fala português (BR) e inglês. O idioma vem do navegador na primeira vez, e o seletor **PT · EN** (ao lado do modo médico) troca na hora. Cada idioma guarda a sua própria partida; o modo médico existe só em português. A tradução usa o [things18n](https://meoriente.com.br/indiethings/things18n/): `i18n.js` tem os textos da interface e `words.en.js` o banco de palavras em inglês.
+O jogo fala português (BR) e inglês. O idioma vem do navegador na primeira vez, e o seletor **PT · EN** (ao lado do modo médico) troca na hora. Cada idioma guarda a sua própria partida; o modo médico existe só em português.
+
+A tradução usa o [things18n](https://meoriente.com.br/indiethings/things18n/), que **não está neste repositório**: o `index.html` carrega a biblioteca de `/indiethings/things18n/things18n.js`, no mesmo site, e o service worker a guarda no cache para jogar offline. `i18n.js` tem os textos que o `game.js` monta e `words.en.js` o banco de palavras em inglês. Para rodar localmente, sirva este repositório num servidor que também tenha o `/indiethings/` (a biblioteca não é carregada de `file://`).
 
 ## Como jogar
 

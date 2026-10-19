@@ -28,9 +28,9 @@
   <link rel="apple-touch-startup-image" href="splash/1320x2868.jpg" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
   <style>html{background:#124a32}</style>
   <link rel="stylesheet" href="style.css">
-  <!-- things18n (a copy of ../../things18n/things18n.js, so this folder stays self-contained and works offline).
-       It loads here, synchronously, so <html lang> is right before the first paint. -->
-  <script src="things18n.js"></script>
+  <!-- things18n is shared: it lives once, in the indiethings repo, and is served from the same site
+       (meoriente.com.br/indiethings/things18n/). Synchronous on purpose: <html lang> is right before the first paint. -->
+  <script src="/indiethings/things18n/things18n.js"></script>
   <script src="i18n.js"></script>
 </head>
 <body>
