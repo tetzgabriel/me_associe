@@ -341,10 +341,31 @@ var badgeEl = null;
 
   /* ------------------------------------------------------------------ debug */
 
+  function paramsOf(v) {
+    var strs = typeof v === 'string' ? [v] : Object.keys(v).map(function (k) { return String(v[k]); }), set = {};
+    strs.forEach(function (x) { (x.replace(/\{\{|\}\}/g, '').match(/\{[A-Za-z0-9_.$-]+\}/g) || []).forEach(function (p) { set[p] = 1; }); });
+    return Object.keys(set).sort().join(', ');
+  }
+
+  // Dictionary health, across ALL languages: keys one language has and another lacks, and keys whose
+  // {params} differ between languages. (The default language may legitimately lack keys: its text is in the HTML.)
+  function parity() {
+    var def = match(cfg.default), have = Object.keys(dicts), all = {}, out = { missing: {}, params: [] };
+    have.forEach(function (l) { Object.keys(dicts[l]).forEach(function (k) { all[k] = 1; }); });
+    langs.forEach(function (l) { if (l !== def && !dicts[l]) out.missing[l] = ['(no dictionary added)']; });
+    Object.keys(all).forEach(function (k) {
+      have.forEach(function (l) { if (l !== def && !(k in dicts[l])) (out.missing[l] = out.missing[l] || []).push(k); });
+      var seen = {}, distinct = [];
+      have.forEach(function (l) { if (k in dicts[l]) { var p = paramsOf(dicts[l][k]); seen[l] = p; if (distinct.indexOf(p) < 0) distinct.push(p); } });
+      if (distinct.length > 1) out.params.push(k + '  ' + Object.keys(seen).map(function (l) { return l + ' [' + seen[l] + ']'; }).join(' vs '));
+    });
+    return out;
+  }
+
   // Which elements and keys have no translation in the current language, and how many
   // <... data-lang="x"> blocks exist per language (a lopsided count means a forgotten block).
   function report(print) {
-    var out = { lang: current, default: match(cfg.default), missing: [], js: Object.keys(missingJs).filter(function (k) { return missingJs[k] === current; }), blocks: {}, lopsidedBlocks: false };
+    var out = { lang: current, default: match(cfg.default), missing: [], js: Object.keys(missingJs).filter(function (k) { return missingJs[k] === current; }), blocks: {}, lopsidedBlocks: false, dictionary: parity() };
     if (HAS_DOM) {
       var els = document.querySelectorAll('[data-i18n-missing]'), i, counts = document.querySelectorAll('[data-lang]');
       for (i = 0; i < els.length; i++) out.missing.push({ key: els[i].getAttribute('data-i18n-missing'), tag: els[i].tagName.toLowerCase(), element: els[i] });
@@ -353,13 +374,19 @@ var badgeEl = null;
       out.lopsidedBlocks = n.length > 1 && Math.min.apply(null, n) !== Math.max.apply(null, n);
     }
     if (print && typeof console !== 'undefined') {
-      console.group('[things18n] ' + current + (out.missing.length || out.js.length || out.lopsidedBlocks ? '' : ' — nothing missing'));
+      console.group('[things18n] ' + current + (hasProblems(out) ? '' : ' — nothing missing'));
       if (out.missing.length) console.warn(out.missing.length + ' element(s) with no ' + current + ' translation (outlined in red):', out.missing.map(function (m) { return m.key; }));
       if (out.js.length) console.warn('t() keys with no ' + current + ' translation:', out.js);
       if (out.lopsidedBlocks) console.warn('data-lang blocks per language are uneven:', out.blocks);
+      Object.keys(out.dictionary.missing).forEach(function (l) { console.warn(l + ' dictionary is missing ' + out.dictionary.missing[l].length + ' key(s) that other languages have:', out.dictionary.missing[l]); });
+      if (out.dictionary.params.length) console.warn('{params} differ between languages for:', out.dictionary.params);
       console.groupEnd();
     }
     return out;
+  }
+
+  function hasProblems(r) {
+    return !!(r.missing.length || r.js.length || r.lopsidedBlocks || Object.keys(r.dictionary.missing).length || r.dictionary.params.length);
   }
 
   function updateBadge() {
@@ -371,8 +398,10 @@ var badgeEl = null;
       document.body.appendChild(badgeEl);
     }
     var r = report(false), b = Object.keys(r.blocks).map(function (k) { return k + ':' + r.blocks[k]; }).join(' ');
-    badgeEl.textContent = 'things18n debug · ' + current + ' · ' + r.missing.length + ' missing' + (r.js.length ? ' + ' + r.js.length + ' in t()' : '') + (b ? ' · blocks ' + b : '');
-    badgeEl.style.background = r.missing.length || r.js.length || r.lopsidedBlocks ? '#b3123f' : '#157347';
+    var gaps = Object.keys(r.dictionary.missing).reduce(function (n, l) { return n + r.dictionary.missing[l].length; }, 0);
+    badgeEl.textContent = 'things18n debug · ' + current + ' · ' + r.missing.length + ' missing' + (r.js.length ? ' + ' + r.js.length + ' in t()' : '') +
+      (gaps ? ' · ' + gaps + ' dictionary gap' + (gaps === 1 ? '' : 's') : '') + (r.dictionary.params.length ? ' · ' + r.dictionary.params.length + ' param mismatch' : '') + (b ? ' · blocks ' + b : '');
+    badgeEl.style.background = hasProblems(r) ? '#b3123f' : '#157347';
   }
 
   function debug(on) {
