@@ -1,15 +1,15 @@
-/*! things18n 1.0.0 — tiny i18n for plain HTML, CSS and JS. No build, no dependencies.
+/*! things18n 1.1.0 — tiny i18n for plain HTML, CSS and JS. No build, no dependencies.
     https://meoriente.com.br/indiethings/things18n/ */
 (function (root) {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var HAS_DOM = typeof document !== 'undefined';
   var RTL = /^(ar|fa|he|iw|ur|ps|sd|ug|yi|dv|ckb)(-|$)/i;
 
   /* ------------------------------------------------------------------ state */
 
-  var cfg = { default: 'en', param: 'lang', storageKey: 'things18n:lang', warn: true };
+  var cfg = { default: 'en', param: 'lang', storageKey: 'things18n:lang', warn: true, switcher: null };
   var langs = [];                 // available languages (declared or added), canonical spelling
   var dicts = {};                 // lang -> flat { 'a.b.c': string | pluralObject }
   var meta = {};                  // lang -> { label }
@@ -22,6 +22,9 @@
   var domReady = false;
   var applyQueued = false;
   var styleEl = null;
+var debugOn = false;
+var missingJs = {};            // keys t() could not find in the current language (for the debug report)
+var badgeEl = null;
 
   /* ---------------------------------------------------------------- helpers */
 
@@ -138,6 +141,7 @@
   function t(key, params, lang) {
     lang = lang ? (match(lang) || current) : current;
     var out = resolveKey(key, params, lang);
+    if (lang !== match(cfg.default) && lookup(key, lang) === undefined) missingJs[key] = lang;
     if (out === undefined) { warn('missing key "' + key + '"'); return key; }
     return out;
   }
@@ -158,13 +162,20 @@
     return el.__t18;
   }
 
+  // Whitespace-insensitive key for the key-less mode (data-t): the source text IS the key.
+  function norm(text) { return String(text).replace(/\s+/g, ' ').trim(); }
+
+  function isMissing(key) { return current !== match(cfg.default) && lookup(key, current) === undefined; }
+
   function applyEl(el) {
-    var orig, v, params = parseParams(el);
-    var k = el.getAttribute('data-i18n');
+    var orig, v, k, params = parseParams(el), miss = [];
+
+    k = el.getAttribute('data-i18n');
     if (k) {
       orig = remember(el);
       v = resolveKey(k, params, current);
       if (v === undefined) { v = orig.text; if (v === '') warn('missing key "' + k + '"'); }
+      if (isMissing(k)) miss.push(k);
       if (el.textContent !== v) el.textContent = v;
     }
     k = el.getAttribute('data-i18n-html');
@@ -172,6 +183,7 @@
       orig = remember(el);
       v = resolveKey(k, params, current);
       if (v === undefined) { v = orig.html; if (v === '') warn('missing key "' + k + '"'); }
+      if (isMissing(k)) miss.push(k);
       if (el.innerHTML !== v) el.innerHTML = v;
     }
     k = el.getAttribute('data-i18n-attr');
@@ -183,11 +195,42 @@
         var attr = pair.slice(0, i).trim(), key = pair.slice(i + 1).trim();
         if (!(attr in orig.attrs)) orig.attrs[attr] = el.getAttribute(attr);
         var val = resolveKey(key, params, current);
+        if (isMissing(key)) miss.push(key);
         if (val === undefined) val = orig.attrs[attr];
         if (val === null || val === undefined) warn('missing key "' + key + '"');
         else el.setAttribute(attr, val);
       });
     }
+
+    // key-less mode: <h1 data-t>Hello</h1>  +  add('pt-BR', { 'Hello': 'Olá' })
+    if (el.hasAttribute('data-t')) {
+      orig = remember(el);
+      if (el.children.length) {
+        warn('data-t on <' + el.tagName.toLowerCase() + '> that contains other elements would lose them; put data-t on the innermost element, or use data-lang blocks / data-i18n-html');
+      } else {
+        k = norm(orig.text);
+        v = resolveKey(k, params, current);
+        if (v === undefined) v = format(orig.text, params);
+        if (k && isMissing(k)) miss.push(k);
+        if (el.textContent !== v) el.textContent = v;
+      }
+    }
+    k = el.getAttribute('data-t-attr');   // <input placeholder="Search" data-t-attr="placeholder aria-label">
+    if (k) {
+      orig = remember(el);
+      k.split(/[\s,;]+/).filter(Boolean).forEach(function (attr) {
+        if (!(attr in orig.attrs)) orig.attrs[attr] = el.getAttribute(attr);
+        var src = orig.attrs[attr];
+        if (src === null || src === undefined) return;
+        var key = norm(src), val = resolveKey(key, params, current);
+        if (val === undefined) val = format(src, params);
+        if (key && isMissing(key)) miss.push(key);
+        el.setAttribute(attr, val);
+      });
+    }
+
+    if (debugOn && miss.length) el.setAttribute('data-i18n-missing', miss.join(' | '));
+    else if (el.hasAttribute('data-i18n-missing')) el.removeAttribute('data-i18n-missing');
   }
 
   function labelFor(l) {
@@ -205,6 +248,7 @@
       var box = boxes[i], sig = langs.join('|');
       if (box.__t18sig === sig) continue;       // already built for this set of languages
       box.__t18sig = sig;
+      if (box.__t18auto) box.hidden = langs.length < 2;
       box.textContent = '';
       var short = box.getAttribute('data-i18n-switch') === 'short';
       langs.forEach(function (l) {
@@ -237,24 +281,53 @@
     }
   }
 
+  var SEL = '[data-i18n],[data-i18n-html],[data-i18n-attr],[data-t],[data-t-attr]';
+
+  function ensureAutoSwitcher() {
+    if (!cfg.switcher || !document.body || document.querySelector('[data-i18n-switch]')) return;
+    var nav = document.createElement('nav');
+    nav.className = 'things18n-switcher';
+    nav.setAttribute('data-i18n-switch', 'short');
+    nav.setAttribute('data-pos', typeof cfg.switcher === 'string' ? cfg.switcher : 'top-right');
+    nav.setAttribute('aria-label', 'Language');
+    nav.__t18auto = true;
+    document.body.appendChild(nav);
+  }
+
   function apply(rootEl) {
     if (!HAS_DOM) return;
     rootEl = rootEl || document;
+    if (rootEl === document) ensureAutoSwitcher();
     buildSwitches(rootEl);
-    var nodes = rootEl.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-attr]');
+    var nodes = rootEl.querySelectorAll(SEL);
     for (var i = 0; i < nodes.length; i++) applyEl(nodes[i]);
-    if (rootEl.nodeType === 1 && (rootEl.hasAttribute('data-i18n') || rootEl.hasAttribute('data-i18n-html') || rootEl.hasAttribute('data-i18n-attr'))) applyEl(rootEl);
+    if (rootEl.nodeType === 1 && rootEl.matches(SEL)) applyEl(rootEl);
     syncSwitches(rootEl);
+    if (debugOn) updateBadge();
   }
 
   // Blocks like <p data-lang="en">…</p><p data-lang="pt-BR">…</p>: CSS shows only the current one.
   // The rules are generated from the available languages, so there is nothing to keep in sync.
+  // Low specificity (:where) so a site can restyle the auto-switcher with a one-line rule.
+  var SWITCHER_CSS =
+    ':where(.things18n-switcher){position:fixed;z-index:2147483000;display:flex;gap:2px;padding:3px;font:600 13px/1 system-ui,-apple-system,sans-serif;background:rgba(255,255,255,.94);color:#222;border-radius:999px;box-shadow:0 1px 8px rgba(0,0,0,.3)}' +
+    ':where(.things18n-switcher[hidden]){display:none}' +
+    ':where(.things18n-switcher[data-pos="top-right"]){top:12px;right:12px}' +
+    ':where(.things18n-switcher[data-pos="top-left"]){top:12px;left:12px}' +
+    ':where(.things18n-switcher[data-pos="bottom-right"]){bottom:12px;right:12px}' +
+    ':where(.things18n-switcher[data-pos="bottom-left"]){bottom:12px;left:12px}' +
+    ':where(.things18n-switcher) button{font:inherit;color:inherit;background:none;border:0;padding:7px 11px;border-radius:999px;cursor:pointer}' +
+    ':where(.things18n-switcher) button[aria-pressed="true"]{background:#222;color:#fff}' +
+    '@media (prefers-color-scheme:dark){:where(.things18n-switcher){background:rgba(30,30,30,.94);color:#eee}:where(.things18n-switcher) button[aria-pressed="true"]{background:#eee;color:#111}}';
+
   function writeBlockCss() {
     if (!HAS_DOM || !document.head) return;
     var css = '';
     langs.forEach(function (l) {
       css += 'html[lang="' + l + '"] [data-lang]:not([data-lang="' + l + '"]){display:none!important}';
     });
+    css += SWITCHER_CSS;
+    if (debugOn) css += '[data-i18n-missing]{outline:2px dashed #e0245e!important;outline-offset:2px}';
     if (!styleEl) { styleEl = document.createElement('style'); styleEl.setAttribute('data-things18n', ''); document.head.appendChild(styleEl); }
     if (styleEl.textContent !== css) styleEl.textContent = css;
   }
@@ -264,6 +337,50 @@
     var h = document.documentElement;
     if (h.getAttribute('lang') !== current) h.setAttribute('lang', current);
     h.setAttribute('dir', RTL.test(current) ? 'rtl' : 'ltr');
+  }
+
+  /* ------------------------------------------------------------------ debug */
+
+  // Which elements and keys have no translation in the current language, and how many
+  // <... data-lang="x"> blocks exist per language (a lopsided count means a forgotten block).
+  function report(print) {
+    var out = { lang: current, default: match(cfg.default), missing: [], js: Object.keys(missingJs).filter(function (k) { return missingJs[k] === current; }), blocks: {}, lopsidedBlocks: false };
+    if (HAS_DOM) {
+      var els = document.querySelectorAll('[data-i18n-missing]'), i, counts = document.querySelectorAll('[data-lang]');
+      for (i = 0; i < els.length; i++) out.missing.push({ key: els[i].getAttribute('data-i18n-missing'), tag: els[i].tagName.toLowerCase(), element: els[i] });
+      for (i = 0; i < counts.length; i++) { var l = counts[i].getAttribute('data-lang'); out.blocks[l] = (out.blocks[l] || 0) + 1; }
+      var n = Object.keys(out.blocks).map(function (k) { return out.blocks[k]; });
+      out.lopsidedBlocks = n.length > 1 && Math.min.apply(null, n) !== Math.max.apply(null, n);
+    }
+    if (print && typeof console !== 'undefined') {
+      console.group('[things18n] ' + current + (out.missing.length || out.js.length || out.lopsidedBlocks ? '' : ' — nothing missing'));
+      if (out.missing.length) console.warn(out.missing.length + ' element(s) with no ' + current + ' translation (outlined in red):', out.missing.map(function (m) { return m.key; }));
+      if (out.js.length) console.warn('t() keys with no ' + current + ' translation:', out.js);
+      if (out.lopsidedBlocks) console.warn('data-lang blocks per language are uneven:', out.blocks);
+      console.groupEnd();
+    }
+    return out;
+  }
+
+  function updateBadge() {
+    if (!HAS_DOM || !document.body) return;
+    if (!badgeEl) {
+      badgeEl = document.createElement('div');
+      badgeEl.className = 'things18n-debug';
+      badgeEl.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483001;font:12px/1.4 ui-monospace,monospace;background:#111;color:#fff;padding:6px 10px;border-radius:6px;box-shadow:0 1px 8px rgba(0,0,0,.4);pointer-events:none;max-width:70vw';
+      document.body.appendChild(badgeEl);
+    }
+    var r = report(false), b = Object.keys(r.blocks).map(function (k) { return k + ':' + r.blocks[k]; }).join(' ');
+    badgeEl.textContent = 'things18n debug · ' + current + ' · ' + r.missing.length + ' missing' + (r.js.length ? ' + ' + r.js.length + ' in t()' : '') + (b ? ' · blocks ' + b : '');
+    badgeEl.style.background = r.missing.length || r.js.length || r.lopsidedBlocks ? '#b3123f' : '#157347';
+  }
+
+  function debug(on) {
+    debugOn = on !== false;
+    if (!debugOn && badgeEl) { badgeEl.remove(); badgeEl = null; }
+    writeBlockCss();
+    if (domReady) { apply(); if (debugOn) report(true); }
+    return debugOn;
   }
 
   /* ----------------------------------------------------------------- update */
@@ -299,6 +416,7 @@
     if (opts.param !== undefined) cfg.param = opts.param;
     if (opts.storageKey) cfg.storageKey = opts.storageKey;
     if (opts.warn !== undefined) cfg.warn = !!opts.warn;
+    if (opts.switcher !== undefined) cfg.switcher = opts.switcher || null;
     if (opts.langs) opts.langs.forEach(addLang);
     addLang(cfg.default);
     requested = detect();
@@ -362,7 +480,7 @@
   var api = {
     version: VERSION,
     init: init, add: add, t: t, has: has, apply: apply, pick: pick,
-    setLang: setLang, onChange: onChange, ready: ready,
+    setLang: setLang, onChange: onChange, ready: ready, debug: debug, report: function () { return report(true); },
     formatNumber: formatNumber, formatDate: formatDate,
     get lang() { return current; },
     get langs() { return langs.slice(); },
@@ -380,7 +498,11 @@
       if (s.hasAttribute('data-param')) o.param = s.getAttribute('data-param');
       if (s.getAttribute('data-storage-key')) o.storageKey = s.getAttribute('data-storage-key');
       if (s.hasAttribute('data-quiet')) o.warn = false;
+      if (s.hasAttribute('data-switcher')) o.switcher = s.getAttribute('data-switcher') || 'top-right';
     }
+    // zero config: the language your HTML is written in is whatever <html lang> says
+    if (!o.default && document.documentElement.getAttribute('lang')) o.default = document.documentElement.getAttribute('lang');
+    if (/[?&]i18n=debug\b/.test(root.location && root.location.search || '')) debugOn = true;
     init(o);
 
     document.addEventListener('click', function (e) {
@@ -401,6 +523,7 @@
     var go = function () {
       domReady = true;
       apply();
+      if (debugOn) report(true);
       readyCbs.splice(0).forEach(function (cb) { try { cb(api); } catch (err) { if (typeof console !== 'undefined') console.error(err); } });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
